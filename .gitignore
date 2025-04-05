@@ -1,0 +1,12 @@
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+*.csproj.user
+.vscode/
+*.pdb
+*.idea
+*.sln
+ipk-25-chat
+Folder.DotSettings
