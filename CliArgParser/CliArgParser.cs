@@ -6,11 +6,11 @@ namespace ipk_25_chat.cliArgParser;
 
 public class CliArgParser
 {
-    private string _protocol = string.Empty;
-    private string _server = string.Empty;
-    private int _port;
-    private int _timeout;
-    private int _maxRetries;
+    public string Protocol = string.Empty;
+    public string Server = string.Empty;
+    public int Port;
+    public int Timeout;
+    public int MaxRetries;
 
     public void ParseCliArgs(string[] args)
     {
@@ -44,11 +44,11 @@ public class CliArgParser
     
         rootCommand.Handler = CommandHandler.Create<string, string, int, int, int>((t, s, p, d, r) =>
         {
-            _protocol = t;
-            _server = s;
-            _port = p;
-            _timeout = d;
-            _maxRetries = r;
+            Protocol = t;
+            Server = s;
+            Port = p;
+            Timeout = d;
+            MaxRetries = r;
         });
         
         rootCommand.Invoke(args);
@@ -57,10 +57,10 @@ public class CliArgParser
     
     public void PrintArgs()
     {
-        Console.WriteLine($"Protocol: {_protocol}");
-        Console.WriteLine($"Server: {_server}");
-        Console.WriteLine($"Port: {_port}");
-        Console.WriteLine($"Timeout: {_timeout}");
-        Console.WriteLine($"Max Retries: {_maxRetries}");
+        Console.WriteLine($"Protocol: {Protocol}");
+        Console.WriteLine($"Server: {Server}");
+        Console.WriteLine($"Port: {Port}");
+        Console.WriteLine($"Timeout: {Timeout}");
+        Console.WriteLine($"Max Retries: {MaxRetries}");
     }
 }

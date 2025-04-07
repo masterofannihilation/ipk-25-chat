@@ -8,5 +8,6 @@ obj/
 *.pdb
 *.idea
 *.sln
-ipk-25-chat
+ipk25chat-client
+notes.txt
 Folder.DotSettings
