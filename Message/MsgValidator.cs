@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace ipk_25_chat.Message;
 
-public class MsgValidator()
+public class MsgValidator
 {
     public bool ValidateFormat(MessageType type, string msg)
     {
@@ -29,10 +29,6 @@ public class MsgValidator()
     private bool IsValidReplyMsg(string msg)
     {
         var msgParts = msg.Split(" ");
-        foreach (var msgPart in msgParts)
-        {
-            Console.WriteLine($"Message part: {msgPart}");
-        }
         var content = GetContent(msg, "IS");
         return msgParts is ["REPLY", "OK" or "NOK", "IS", ..] &&
                IsValidContent(content);

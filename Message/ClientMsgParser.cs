@@ -1,4 +1,3 @@
-using System;
 using System.Text.RegularExpressions;
 using ipk_25_chat.Message.Interface;
 
@@ -6,9 +5,13 @@ namespace ipk_25_chat.Message;
 
 public class ClientMsgParser : IMsgParser
 {
-    private string _displayName;
+    private string? _displayName;
     private readonly MsgValidator _validator = new();
-
+    
+    public string? GetDisplayName()
+    {
+        return _displayName;
+    }
     public string ParseMsg(string msg)
     {
         Console.WriteLine($"Display name: {_displayName}");
@@ -45,7 +48,7 @@ public class ClientMsgParser : IMsgParser
                 "/join" => MessageType.Join,
                 "/rename" => MessageType.Rename,
                 "/help" => MessageType.Help,
-                _ => MessageType.Help
+                _ => MessageType.Unknown
             };
         }
         return MessageType.Msg;
@@ -54,7 +57,7 @@ public class ClientMsgParser : IMsgParser
     
     private string GetAuthMessage(string msg)
     {
-        var msgParts = msg.Split(" ");
+        string?[] msgParts = msg.Split(" ");
         
         var id = msgParts[1];
         var secret = msgParts[2];
@@ -79,7 +82,7 @@ public class ClientMsgParser : IMsgParser
     
     private string ChangeDisplayName(string msg)
     {
-        var msgParts = msg.Split(" ");
+        string?[] msgParts = msg.Split(" ");
         
         if (msgParts.Length != 2)
             throw new ArgumentException($"Invalid 'RENAME' message: {msg}");

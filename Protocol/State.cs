@@ -18,7 +18,6 @@ public class State
 
     public void HandleEvent(MessageType msgType)
     {
-        Console.WriteLine($"\nCurrent state: {CurrentState}");
         switch (CurrentState)
         {
            case StateType.Start:
@@ -71,7 +70,6 @@ public class State
 
                break;
         }
-        Console.WriteLine($"\nEntering state: {CurrentState}");
     }
 
     public bool IsMessageTypeAllowed(MessageType type)

@@ -7,20 +7,24 @@ public class ServerMsgParser : IMsgParser
 {
     private string? _displayName;
     private readonly MsgValidator _validator = new();
+    
+    public string? GetDisplayName()
+    {
+        return _displayName;
+    }
     public string ParseMsg(string msg)
     {
         var msgType = GetMsgType(msg);
         if (!_validator.ValidateFormat(msgType, msg))
         {
-            Console.Error.WriteLine($"Invalid message format from server: {Regex.Escape(msg)}");
-            throw new ArgumentException($"Invalid message format: {msg}");
+            Console.Write($"ERROR: {msg}");
+            return "ERROR";
         }
 
         return msgType switch
         {
             MessageType.Msg => ParseNormalMessage(msg),
             MessageType.Err => ParseErrorMessage(msg),
-            MessageType.Bye => ParseByeMessage(),
             MessageType.Reply => ParseReplyMessage(msg),
             MessageType.NotReply => ParseNotReplyMessage(msg),
             _ => ""
@@ -29,15 +33,16 @@ public class ServerMsgParser : IMsgParser
 
     public MessageType GetMsgType(string msg)
     {
-        string type = msg.Split(" ")[0];
-        string response = msg.Split(" ")[1];
-
-        return type switch
+        var msgParts = msg.Split(" ");
+        if (msgParts.Length < 2)
+            return MessageType.Unknown;
+        
+        return msgParts[0] switch
         {
             "MSG" => MessageType.Msg,
             "ERR" => MessageType.Err,
             "BYE" => MessageType.Bye,
-            "REPLY" => response switch
+            "REPLY" => msgParts[1] switch
             {
                 "OK" => MessageType.Reply,
                 "NOK" => MessageType.NotReply,
@@ -64,11 +69,6 @@ public class ServerMsgParser : IMsgParser
         var content = _validator.GetContent(msg, "IS");
 
         return $"ERROR FROM {displayName}: {content}\n";
-    }
-
-    private string ParseByeMessage()
-    {
-        return "BYE";
     }
 
     private string ParseReplyMessage(string msg)
