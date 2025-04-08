@@ -10,7 +10,6 @@ class Program
     {
         var argParser = new cliArgParser.CliArgParser();
         argParser.ParseCliArgs(args);
-        argParser.PrintArgs();
         
         if (argParser.Protocol == "tcp")
         {

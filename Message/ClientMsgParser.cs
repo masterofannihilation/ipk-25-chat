@@ -1,28 +1,39 @@
 using System;
 using System.Text.RegularExpressions;
+using ipk_25_chat.Message.Interface;
 
 namespace ipk_25_chat.Message;
 
 public class ClientMsgParser : IMsgParser
 {
     private string _displayName;
+    private readonly MsgValidator _validator = new();
 
     public string ParseMsg(string msg)
     {
+        Console.WriteLine($"Display name: {_displayName}");
         var msgType = GetMsgType(msg);
         
-        return msgType switch
+        var result = msgType switch
         {
-            IMsgParser.MessageType.Auth => GetAuthMessage(msg),
-            IMsgParser.MessageType.Join => GetJoinMessage(msg),
-            IMsgParser.MessageType.Msg => GetNormalMessage(msg),
-            IMsgParser.MessageType.Help => ShowHelp(),
-            IMsgParser.MessageType.Rename => ChangeDisplayName(msg),
+            MessageType.Auth => GetAuthMessage(msg),
+            MessageType.Join => GetJoinMessage(msg),
+            MessageType.Msg => GetNormalMessage(msg),
+            MessageType.Help => ShowHelp(),
+            MessageType.Rename => ChangeDisplayName(msg),
             _ => throw new ArgumentException($"Unknown message type: {msgType}")
         };
+        
+        if (!_validator.ValidateFormat(msgType, result))
+        {
+            Console.WriteLine($"ERROR: {Regex.Escape(result)}");
+            throw new ArgumentException($"Invalid message format: {msg}");
+        }
+        
+        return result;
     }
 
-    public IMsgParser.MessageType GetMsgType(string msg)
+    public MessageType GetMsgType(string msg)
     {
         if (msg.StartsWith('/'))
         {
@@ -30,36 +41,24 @@ public class ClientMsgParser : IMsgParser
             
             return command switch
             {
-                "/auth" => IMsgParser.MessageType.Auth,
-                "/join" => IMsgParser.MessageType.Join,
-                "/rename" => IMsgParser.MessageType.Rename,
-                "/help" => IMsgParser.MessageType.Help,
-                _ => IMsgParser.MessageType.Help
+                "/auth" => MessageType.Auth,
+                "/join" => MessageType.Join,
+                "/rename" => MessageType.Rename,
+                "/help" => MessageType.Help,
+                _ => MessageType.Help
             };
         }
-        return IMsgParser.MessageType.Msg;
+        return MessageType.Msg;
         
     }
     
     private string GetAuthMessage(string msg)
     {
         var msgParts = msg.Split(" ");
-
-        if (msgParts.Length != 4)
-            throw new ArgumentException($"Invalid 'AUTH' message: {msg}");
         
         var id = msgParts[1];
         var secret = msgParts[2];
         _displayName = msgParts[3];
-        
-        if (!ValidId(id))
-            throw new ArgumentException($"Invalid format of ID: {id}");
-        
-        if (!ValidSecret(secret))
-            throw new ArgumentException($"Invalid format of secret: {secret}");
-        
-        if (!ValidDisplayName(_displayName))
-            throw new ArgumentException($"Invalid format of display name: {_displayName}");
         
         return $"AUTH {id} AS {_displayName} USING {secret}\r\n";
     }
@@ -67,22 +66,14 @@ public class ClientMsgParser : IMsgParser
     private string GetJoinMessage(string msg)
     {
         var msgParts = msg.Split(" ");
-
-        if (msgParts.Length != 2)
-            throw new ArgumentException($"Invalid 'JOIN' message: {msg}");
         
         var channelId = msgParts[1];
-        if (!ValidId(channelId))
-            throw new ArgumentException($"Invalid format of channel ID: {channelId}");
         
         return $"JOIN {channelId} AS {_displayName}\r\n";
     }
     
     private string GetNormalMessage(string msg)
     {
-        if (!ValidMessageContent(msg))
-            throw new ArgumentException($"Invalid format of message: {msg}");
-        
         return $"MSG FROM {_displayName} IS {msg}\r\n";
     }
     
@@ -108,29 +99,4 @@ public class ClientMsgParser : IMsgParser
 
         return string.Empty;
     }
-
-    private bool ValidId(string id)
-    {
-        var regex = new Regex(@"^[a-zA-Z0-9_-]{1,20}$");
-        return regex.IsMatch(id);
-    }
-    
-    private bool ValidSecret(string secret)
-    {
-        var regex = new Regex(@"^[a-zA-Z0-9_-]{1,128}$");
-        return regex.IsMatch(secret);
-    }
-
-    private bool ValidDisplayName(string displayName)
-    {
-        var regex = new Regex(@"^\S{1,20}$");
-        return regex.IsMatch(displayName);
-    }
-
-    private bool ValidMessageContent(string message)
-    {
-        var regex = new Regex(@"^[\x21-\x7E\x20\x0A]{1,60000}$");
-        return regex.IsMatch(message);
-    }
-
 }
