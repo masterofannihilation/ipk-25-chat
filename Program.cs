@@ -1,7 +1,6 @@
 ﻿using System.Net.Sockets;
 using System.Threading.Tasks;
 using ipk_25_chat.Client;
-using TcpClient = ipk_25_chat.Client.TcpClient;
 
 namespace ipk_25_chat;
 class Program
@@ -13,8 +12,8 @@ class Program
         
         if (argParser.Protocol == "tcp")
         {
-            var tcpClient = new TcpClient(argParser.Server, argParser.Port);
-            await tcpClient.InitClient();
+            var tcpClient = new TcpChatClient(argParser.Server, argParser.Port);
+            await tcpClient.RunAsync();
         }
         
     }

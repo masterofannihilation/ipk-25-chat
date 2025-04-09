@@ -5,13 +5,8 @@ namespace ipk_25_chat.Message;
 
 public class ServerMsgParser : IMsgParser
 {
-    private string? _displayName;
     private readonly MsgValidator _validator = new();
     
-    public string? GetDisplayName()
-    {
-        return _displayName;
-    }
     public string ParseMsg(string msg)
     {
         var msgType = GetMsgType(msg);
@@ -56,10 +51,10 @@ public class ServerMsgParser : IMsgParser
     private string ParseNormalMessage(string msg)
     {
         string?[] msgParts = msg.Split(" ");
-        _displayName = msgParts[2];
+        var displayName = msgParts[2];
         var content = _validator.GetContent(msg, "IS");
 
-        return $"{_displayName}: {content}\n";
+        return $"{displayName}: {content}\n";
     }
 
     private string ParseErrorMessage(string msg)
@@ -78,10 +73,11 @@ public class ServerMsgParser : IMsgParser
         return $"Action Success: {content}";
     }
     
+    
     private string ParseNotReplyMessage(string msg)
     {
         var content = _validator.GetContent(msg, "IS");
         
-        return $"Action Success: {content}";
+        return $"Action Failure: {content}";
     }
 }

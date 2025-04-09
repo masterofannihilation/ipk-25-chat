@@ -10,11 +10,11 @@ public class ClientMsgParser : IMsgParser
     
     public string? GetDisplayName()
     {
+        Console.WriteLine($"Display name: {_displayName}");
         return _displayName;
     }
     public string ParseMsg(string msg)
     {
-        Console.WriteLine($"Display name: {_displayName}");
         var msgType = GetMsgType(msg);
         
         var result = msgType switch
@@ -89,8 +89,7 @@ public class ClientMsgParser : IMsgParser
         
         _displayName = msgParts[1];
         
-        
-        return $"NEW: ${_displayName}";
+        return "";
     }
     private string ShowHelp()
     {

@@ -16,7 +16,7 @@ public class State
 {
     public StateType CurrentState { get; private set; } = StateType.Start;
 
-    public void HandleEvent(MessageType msgType)
+    public void ProcessEvent(MessageType msgType)
     {
         switch (CurrentState)
         {
@@ -70,6 +70,7 @@ public class State
 
                break;
         }
+        Console.WriteLine($"State: {CurrentState}");
     }
 
     public bool IsMessageTypeAllowed(MessageType type)

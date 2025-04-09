@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.JavaScript;
 using System.Text.RegularExpressions;
 
 namespace ipk_25_chat.Message;
@@ -60,11 +61,30 @@ public class MsgValidator
 
     private bool IsValidNormalMsg(string msg)
     {
+        msg = CheckMessageLength(msg);
         var msgParts = msg.Split(" ");
         var content = GetContent(msg, "IS");
         return msgParts is ["MSG", "FROM", _, "IS", ..] &&
                IsValidDisplayName(msgParts[2]) &&
                IsValidContent(content);
+    }
+
+    private static string CheckMessageLength(string msg)
+    {
+        if (msg.Length > 60000)
+        {
+            Console.WriteLine("ERROR: Message is too long, max 60000 characters");
+            msg = msg.Substring(0, 60000);
+            
+        }
+
+        return msg;
+    }
+    public string GetContent(string msg, string delimiter)
+    {
+        int index = msg.IndexOf(delimiter, StringComparison.Ordinal);
+        var content = msg.Substring(index + 3);
+        return content;
     }
 
     private bool IsValidErrMsg(string msg)
@@ -76,12 +96,6 @@ public class MsgValidator
                IsValidContent(content);
     }
     
-    public string GetContent(string msg, string delimiter)
-    {
-        int index = msg.IndexOf(delimiter, StringComparison.Ordinal);
-        var content = msg.Substring(index + 3);
-        return content;
-    }
     
     public bool IsValidId(string id)
     {
@@ -115,7 +129,7 @@ public class MsgValidator
 
     public bool IsValidContent(string message)
     {
-        var regex = new Regex(@"^[\x21-\x7E\x20\x0A]{1,60000}$");
+        var regex = new Regex(@"^[\x21-\x7E\x20\x0A]*$");
         if (!regex.IsMatch(message.Trim()))
         {
             Console.WriteLine($"Invalid content: {Regex.Escape(message)}");
