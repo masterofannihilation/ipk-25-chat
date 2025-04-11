@@ -15,6 +15,6 @@ class Program
             var tcpClient = new TcpChatClient(argParser.Server, argParser.Port);
             await tcpClient.RunAsync();
         }
-        
+        Environment.Exit(0);
     }
 }

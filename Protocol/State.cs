@@ -70,7 +70,6 @@ public class State
 
                break;
         }
-        Console.WriteLine($"State: {CurrentState}");
     }
 
     public bool IsMessageTypeAllowed(MessageType type)
@@ -82,7 +81,9 @@ public class State
             case StateType.Auth:
                 return type == MessageType.NotReply || type == MessageType.Reply || type == MessageType.Bye || type == MessageType.Err;
             case StateType.Open:
-                return type == MessageType.Msg || type == MessageType.Join || type == MessageType.Bye || type == MessageType.Err || type == MessageType.Reply || type == MessageType.NotReply;
+                return type == MessageType.Msg || type == MessageType.Join || type == MessageType.Bye || 
+                       type == MessageType.Err || type == MessageType.Reply || type == MessageType.NotReply ||
+                       type == MessageType.Help || type == MessageType.Rename;
             case StateType.Join:
                 return type == MessageType.Msg || type == MessageType.NotReply || type == MessageType.Reply || type == MessageType.Bye || type == MessageType.Err;
             default:

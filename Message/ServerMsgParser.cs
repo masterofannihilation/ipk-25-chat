@@ -10,20 +10,18 @@ public class ServerMsgParser : IMsgParser
     public string ParseMsg(string msg)
     {
         var msgType = GetMsgType(msg);
-        if (!_validator.ValidateFormat(msgType, msg))
-        {
-            Console.Write($"ERROR: {msg}");
-            return "ERROR";
-        }
-
-        return msgType switch
-        {
-            MessageType.Msg => ParseNormalMessage(msg),
-            MessageType.Err => ParseErrorMessage(msg),
-            MessageType.Reply => ParseReplyMessage(msg),
-            MessageType.NotReply => ParseNotReplyMessage(msg),
-            _ => ""
-        };
+        if (_validator.ValidateFormat(msgType, msg))
+            return msgType switch
+            {
+                MessageType.Msg => ParseNormalMessage(msg),
+                MessageType.Err => ParseErrorMessage(msg),
+                MessageType.Reply => ParseReplyMessage(msg),
+                MessageType.NotReply => ParseNotReplyMessage(msg),
+                _ => ""
+            };
+        
+        Console.Write($"ERROR: {msg}");
+        return "ERROR";
     }
 
     public MessageType GetMsgType(string msg)
@@ -54,7 +52,7 @@ public class ServerMsgParser : IMsgParser
         var displayName = msgParts[2];
         var content = _validator.GetContent(msg, "IS");
 
-        return $"{displayName}: {content}\n";
+        return $"{displayName}: {content}";
     }
 
     private string ParseErrorMessage(string msg)
@@ -63,7 +61,7 @@ public class ServerMsgParser : IMsgParser
         var displayName = msgParts[2];
         var content = _validator.GetContent(msg, "IS");
 
-        return $"ERROR FROM {displayName}: {content}\n";
+        return $"ERROR FROM {displayName}: {content}";
     }
 
     private string ParseReplyMessage(string msg)

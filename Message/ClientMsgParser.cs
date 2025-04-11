@@ -10,7 +10,6 @@ public class ClientMsgParser : IMsgParser
     
     public string? GetDisplayName()
     {
-        Console.WriteLine($"Display name: {_displayName}");
         return _displayName;
     }
     public string ParseMsg(string msg)
@@ -27,7 +26,7 @@ public class ClientMsgParser : IMsgParser
             _ => throw new ArgumentException($"Unknown message type: {msgType}")
         };
         
-        if (!_validator.ValidateFormat(msgType, result))
+        if (result != string.Empty && !_validator.ValidateFormat(msgType, result))
         {
             Console.WriteLine($"ERROR: {Regex.Escape(result)}");
             throw new ArgumentException($"Invalid message format: {msg}");
@@ -89,7 +88,7 @@ public class ClientMsgParser : IMsgParser
         
         _displayName = msgParts[1];
         
-        return "";
+        return string.Empty;
     }
     private string ShowHelp()
     {
