@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ipk_25_chat.Message.Enum;
 using ipk_25_chat.Message.Interface;
 
 namespace ipk_25_chat.Message;
@@ -20,7 +21,6 @@ public class ServerMsgParser : IMsgParser
                 _ => ""
             };
         
-        Console.Write($"ERROR: {msg}");
         return "ERROR";
     }
 

@@ -1,0 +1,144 @@
+@startuml
+
+class Main 
+{
+    -StartTcpClient(): Task
+    -StartUdpClient(): Task
+}
+
+class CliArgParser
+{
+    +Protocol: string
+    +Server: string
+    +Port: int 
+    +Timeout: int
+    +MaxRetries: int
+    +ParseCliArgs(): void
+    +PrintArgs(): void
+}
+
+class TcpChatClient 
+{
+    - _host: string
+    - _port: string
+    - _state: State
+    - _displayName: string
+    - _userInput = Channel
+    +RunAsync(): Task
+    -RegisterCancelKeyPress(): void
+    -ReadUserInput(): Task
+    -ProcessUserInputAsync(): Task
+    -ProcessOutgoingMessageAsync(): Task
+    -UpdateDisplayNameIfNeeded(): void
+    -TerminateConnectionIfEndState(): Task
+    -SendByeMessage(): Task
+    -SendMessageAsync(): Task
+    -WaitForResponseFromServerAsync(): Task
+    -ProcessServerInputAsync(): Task
+    -ProcessReceivingMessageAsync(): Task
+    -Disconnect(): Task
+    -ShowHelp(): void
+}
+
+enum MessageType
+{
+    Auth = 0x02,
+    Join = 0x03,
+    Msg = 0x04,
+    Rename = 0xA1,
+    Help = 0xA2,
+    Err = 0xFE,
+    Reply = 0x01,
+    NotReply = 0xA3,
+    Bye = 0xFF,
+    Confirm = 0x00,
+    Ping = 0xFD,
+    Unknown = 0xA4
+}
+
+interface IMsgParser
+{
+    +ParseMsg(message: String): string
+    +GetMsgType(string msg): MessageType
+}
+
+class ClientMsgParser
+{
+    - _displayName : string
+    - _validator : MsgValidator
+    +ParseMsg(message: String): string
+    +GetMsgType(string msg): MessageType
+    +GetDisplayName(): string
+    -GetAuthMessage(): string
+    -GetJoinMessage(): string
+    -GetNormalMessage(): string
+    -ChangeDisplayName(): string
+    -ShowHelp(): string
+}
+
+class MsgValidator {
+    + ValidateFormat(): bool
+    + GetContent(): bool
+    - IsValidReplyMsg(): bool
+    - IsValidByeMsg(): bool
+    - IsValidAuthMsg(): bool
+    - IsValidJoinMsg(): bool
+    - IsValidNormalMsg(): bool
+    - CheckMessageLength(): string
+    - IsValidErrMsg(): bool
+    - IsValidId(): bool
+    - IsValidSecret(): bool
+    - IsValidDisplayName(): bool
+    - IsValidContent(): bool
+}
+
+class ServerMsgParser
+{
+    - _validator : MsgValidator
+    + ParseMsg()
+    + GetMsgType()
+    - ParseNormalMessage()
+    - ParseErrorMessage()
+    - ParseReplyMessage()
+    - ParseNotReplyMessage()
+}
+
+class State {
+    + CurrentState : StateType
+    + ProcessEvent() : 
+    + IsMessageTypeAllowed() : bool
+}
+
+enum StateType {
+    Start
+    Auth
+    Open
+    Join
+    End
+}
+
+
+
+IMsgParser --> MessageType 
+IMsgParser ..|> ClientMsgParser
+IMsgParser ..|> ServerMsgParser
+
+TcpChatClient --> ClientMsgParser
+TcpChatClient --> ServerMsgParser
+TcpChatClient --> State
+
+ClientMsgParser --> MsgValidator
+ServerMsgParser --> MsgValidator
+
+State --> StateType
+State --> MessageType
+
+
+Main --> TcpChatClient
+Main --> CliArgParser
+
+
+
+
+
+@enduml

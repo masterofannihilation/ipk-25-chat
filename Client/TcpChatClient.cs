@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using ipk_25_chat.Message;
+using ipk_25_chat.Message.Enum;
 using ipk_25_chat.Protocol;
 
 namespace ipk_25_chat.Client;
@@ -14,6 +15,7 @@ public class TcpChatClient
     private readonly State _state = new();
     private string _displayName = "Unknown";
     private const int BufferSize = 1024;
+    private bool _isDisconnected;
     
     private readonly Channel<string> _userInput = Channel.CreateUnbounded<string>();
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -22,7 +24,7 @@ public class TcpChatClient
 
     public TcpChatClient(string host, int port)
     {
-        _host = host ?? throw new ArgumentNullException(nameof(host));
+        _host = host;
         _port = port;
     }
 
@@ -49,6 +51,7 @@ public class TcpChatClient
         Console.CancelKeyPress += async (sender, e) =>
         {
             e.Cancel = true; // Prevent immediate termination
+            await SendByeMessage(stream, cts);
             await Disconnect(stream, cts);
             Environment.Exit(0);
         };
@@ -85,9 +88,16 @@ public class TcpChatClient
                 await ProcessOutgoingMessageAsync(stream, cts, msgParser, input);
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Handle BYE gracefully
+            await Disconnect(stream, cts);
+            Environment.Exit(0);
+        }
         // Terminate the application after processing all messages
         finally
         {
+            await SendByeMessage(stream, cts);
             await Disconnect(stream, cts);
         }
     }
@@ -98,20 +108,20 @@ public class TcpChatClient
         try
         {
             var msgType = clientMsgParser.GetMsgType(input);
-            // Check if the message type client is trying to send is allowed in the current state
+            // Check if the message type the client is trying to send is allowed in the current state
             if (_state.IsMessageTypeAllowed(msgType))
             {
                 var formattedMessage = clientMsgParser.ParseMsg(input);
-                // Check if user set its display name in auth message or changed it using /rename
+                // Check if the user set its display name in an auth message or changed it using /rename
                 UpdateDisplayNameIfNeeded(clientMsgParser, msgType);
-                // Change state of the client based on the message type
+                // Change the state of the client based on the message type
                 _state.ProcessEvent(msgType);
-                // If client entered END state, send BYE message to the server and disconnect
+                // If the client entered the END state, send a BYE message to the server and disconnect
                 await TerminateConnectionIfEndState(stream, cts);
-                // Send formatted message to the server unless it's /rename 
+                // Send a formatted message to the server unless it's /rename 
                 if (formattedMessage != "")
                     await SendMessageAsync(stream, cts, formattedMessage);
-                // Wait for response only when authorizing user or joining a channel
+                // Wait for response only when authorizing the user or joining a channel
                 await WaitForResponseFromServerAsync(stream, cts);
             }
             else
@@ -128,7 +138,7 @@ public class TcpChatClient
     
     private void UpdateDisplayNameIfNeeded(ClientMsgParser clientMsgParser, MessageType msgType)
     {
-        if (msgType == MessageType.Rename || msgType == MessageType.Auth)
+        if (msgType is MessageType.Rename or MessageType.Auth)
             _displayName = clientMsgParser.GetDisplayName() ?? "Unknown";
     }
     private async Task TerminateConnectionIfEndState(NetworkStream stream, CancellationTokenSource cts)
@@ -146,8 +156,25 @@ public class TcpChatClient
     }
     private static async Task SendMessageAsync(NetworkStream stream, CancellationTokenSource cts, string formattedMessage)
     {
-        byte[] data = Encoding.UTF8.GetBytes(formattedMessage);
-        await stream.WriteAsync(data, 0, data.Length, cts.Token);
+        // Do not try to send a message if cancellation is requested
+        if (cts.Token.IsCancellationRequested)
+            return; 
+
+        try
+        {
+            byte[] data = Encoding.UTF8.GetBytes(formattedMessage);
+            await stream.WriteAsync(data, 0, data.Length, cts.Token);
+        }
+        catch (ObjectDisposedException)
+        {
+            await Console.Error.WriteLineAsync("ERROR: Attempted to write to a disposed stream.");
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"ERROR: Failed to send message: {ex.Message}");
+            Environment.Exit(1);
+        }
     }
     
     private async Task WaitForResponseFromServerAsync(NetworkStream stream, CancellationTokenSource cts)
@@ -159,47 +186,68 @@ public class TcpChatClient
             if (await Task.WhenAny(responseTask, Task.Delay(5000)) != responseTask)
             {
                 Console.WriteLine("ERROR: Server response timeout");
+                await SendErrMessage(stream, cts);
                 await Disconnect(stream, cts);
+                Environment.Exit(1);
             }
             // Reset the TaskCompletionSource for the next message
             _responseTcs = new();
         }
     }
     
+    private async Task SendErrMessage(NetworkStream stream, CancellationTokenSource cts, string invalidMsg="")
+    {
+        byte[] data = Encoding.UTF8.GetBytes($"ERR FROM {_displayName} IS {invalidMsg}\r\n");
+        await stream.WriteAsync(data, 0, data.Length, cts.Token);
+    }
+
     private async Task ProcessServerInputAsync(NetworkStream stream, CancellationTokenSource cts)
     {
         var msgParser = new ServerMsgParser();
         var buffer = new byte[BufferSize];
 
-        // Continuously read from the server
-        while (!cts.IsCancellationRequested)
+        try
         {
-            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
-            
-            if (bytesRead > 0)
+            // Continuously read from the server
+            while (!cts.IsCancellationRequested)
             {
-                // Process the received message
-                await ProcessReceivingMessageAsync(stream, cts, buffer, bytesRead, msgParser);
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+
+                if (bytesRead > 0)
+                {
+                    // Process the received message
+                    await ProcessReceivingMessageAsync(stream, cts, buffer, bytesRead, msgParser);
+                }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation gracefully
+            await Disconnect(stream, cts);
+            Environment.Exit(0);
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"ERROR: An unexpected error occurred while reading from the server: {ex.Message}");
+            await Disconnect(stream, cts);
+            Environment.Exit(1);
         }
     }
 
     private async Task ProcessReceivingMessageAsync(NetworkStream stream, CancellationTokenSource cts, byte[] buffer, int bytesRead, ServerMsgParser serverMsgParser)
     {
-        // Parse server message and print it if it's valid IPK-25-CHAT message
+        // Parse a server message and print it if it's a valid IPK-25-CHAT message
         var msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
         var msgType = serverMsgParser.GetMsgType(msg);
         
         if (msgType == MessageType.Unknown || !_state.IsMessageTypeAllowed(msgType))
         {
             Console.Write($"ERROR: {msg}");
+            await SendErrMessage(stream, cts, msg);
             await Disconnect(stream, cts);
         }
         
-        // Change state of the client based on the message type
-        _state.ProcessEvent(msgType);  
-        await TerminateConnectionIfEndState(stream, cts);
-        // Format server message for display, check if format is valid
+        // Format server message for display, check if the format is valid
         var formattedMsg = serverMsgParser.ParseMsg(msg);
         //
         if (formattedMsg != "" && formattedMsg != "ERROR")
@@ -207,6 +255,10 @@ public class TcpChatClient
         
         if (formattedMsg == "ERROR")
             await Disconnect(stream, cts);
+        
+        // Change the state of the client based on the message type
+        _state.ProcessEvent(msgType);  
+        await TerminateConnectionIfEndState(stream, cts);
 
         // Signal that a response has been received and another user message can be processed
         _responseTcs.TrySetResult(true);
@@ -214,11 +266,14 @@ public class TcpChatClient
 
     private async Task Disconnect(NetworkStream stream, CancellationTokenSource cts)
     {
+        if (_isDisconnected) return; // Prevent multiple disconnections
+            _isDisconnected = true;
+        
         try
         {
-            cts.Cancel();
+            await cts.CancelAsync();
             await stream.FlushAsync();
-            Console.WriteLine("Disconnected successfully");
+            // Console.WriteLine("Disconnected successfully");
         }
         catch (Exception ex)
         {

@@ -1,5 +1,6 @@
 ﻿using System.Net.Sockets;
 using System.Threading.Tasks;
+using ipk_25_chat.cliArgParser;
 using ipk_25_chat.Client;
 
 namespace ipk_25_chat;
@@ -7,14 +8,23 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var argParser = new cliArgParser.CliArgParser();
+        var argParser = new CliArgParser();
         argParser.ParseCliArgs(args);
         
-        if (argParser.Protocol == "tcp")
+        switch (argParser.Protocol)
         {
-            var tcpClient = new TcpChatClient(argParser.Server, argParser.Port);
-            await tcpClient.RunAsync();
+            case "tcp":
+                await StartTcpClient(argParser);
+                break;
+            case "udp":
+                throw new NotImplementedException();
         }
         Environment.Exit(0);
+    }
+
+    private static async Task StartTcpClient(CliArgParser argParser)
+    {
+        var tcpClient = new TcpChatClient(argParser.Server, argParser.Port);
+        await tcpClient.RunAsync();
     }
 }

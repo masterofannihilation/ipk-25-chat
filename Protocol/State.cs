@@ -1,17 +1,8 @@
 using System;
 using ipk_25_chat.Message;
+using ipk_25_chat.Message.Enum;
 
 namespace ipk_25_chat.Protocol;
-
-public enum StateType
-{
-    Start,
-    Auth,
-    Open,
-    Join,
-    End,
-}
-
 public class State
 {
     public StateType CurrentState { get; private set; } = StateType.Start;
@@ -21,52 +12,40 @@ public class State
         switch (CurrentState)
         {
            case StateType.Start:
-               if (msgType == MessageType.Auth)
+               CurrentState = msgType switch
                {
-                   CurrentState = StateType.Auth;
-               }
-               else if (msgType == MessageType.Bye || msgType == MessageType.Err)
-               {
-                   CurrentState = StateType.End;
-               }
+                   MessageType.Auth => StateType.Auth,
+                   MessageType.Bye or MessageType.Err => StateType.End,
+                   _ => CurrentState
+               };
 
                break;
            case StateType.Auth:
-               if (msgType == MessageType.Reply)
+               CurrentState = msgType switch
                {
-                    CurrentState = StateType.Open;
-               }
-               else if (msgType == MessageType.Bye || msgType == MessageType.Err)
-               {
-                   CurrentState = StateType.End;
-               }
+                   MessageType.Reply => StateType.Open,
+                   MessageType.Bye or MessageType.Err => StateType.End,
+                   _ => CurrentState
+               };
 
                break;
            case StateType.Open:
-               if (msgType == MessageType.Join)
+               CurrentState = msgType switch
                {
-                   CurrentState = StateType.Join;
-               }
-               else if (msgType == MessageType.Msg)
-               {
-                   CurrentState = CurrentState;
-               }
-               else if (msgType == MessageType.Bye || msgType == MessageType.Err || msgType == MessageType.Reply || msgType == MessageType.NotReply)
-               {
-                   Console.WriteLine("Here");
-                   CurrentState = StateType.End;
-               }
+                   MessageType.Join => StateType.Join,
+                   MessageType.Msg => CurrentState,
+                   MessageType.Bye or MessageType.Err or MessageType.Reply or MessageType.NotReply => StateType.End,
+                   _ => CurrentState
+               };
 
                break;
            case StateType.Join:
-               if (msgType == MessageType.NotReply || msgType == MessageType.Reply)
+               CurrentState = msgType switch
                {
-                   CurrentState = StateType.Open;
-               }
-               else if (msgType == MessageType.Bye || msgType == MessageType.Err)
-               {
-                   CurrentState = StateType.End;
-               }
+                   MessageType.NotReply or MessageType.Reply => StateType.Open,
+                   MessageType.Bye or MessageType.Err => StateType.End,
+                   _ => CurrentState
+               };
 
                break;
         }
@@ -74,20 +53,19 @@ public class State
 
     public bool IsMessageTypeAllowed(MessageType type)
     {
-        switch (CurrentState)
+        // Client can use /help command at any time
+        if (type == MessageType.Help)
+            return true;
+        
+        return CurrentState switch
         {
-            case StateType.Start:
-                return type == MessageType.Auth || type == MessageType.Bye || type == MessageType.Err;
-            case StateType.Auth:
-                return type == MessageType.NotReply || type == MessageType.Reply || type == MessageType.Bye || type == MessageType.Err;
-            case StateType.Open:
-                return type == MessageType.Msg || type == MessageType.Join || type == MessageType.Bye || 
-                       type == MessageType.Err || type == MessageType.Reply || type == MessageType.NotReply ||
-                       type == MessageType.Help || type == MessageType.Rename;
-            case StateType.Join:
-                return type == MessageType.Msg || type == MessageType.NotReply || type == MessageType.Reply || type == MessageType.Bye || type == MessageType.Err;
-            default:
-                return false;
-        }
+            StateType.Start => type is MessageType.Auth or MessageType.Bye or MessageType.Err,
+            StateType.Auth => type is MessageType.NotReply or MessageType.Auth or MessageType.Reply or MessageType.Bye or MessageType.Err,
+            StateType.Open => type is MessageType.Msg or MessageType.Join or MessageType.Bye or MessageType.Err
+                or MessageType.Reply or MessageType.NotReply or MessageType.Rename,
+            StateType.Join => type is MessageType.Msg or MessageType.NotReply or MessageType.Reply or MessageType.Bye
+                or MessageType.Err,
+            _ => false
+        };
     }
 }
