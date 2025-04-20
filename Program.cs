@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using ipk_25_chat.cliArgParser;
 using ipk_25_chat.Client;
@@ -18,6 +19,9 @@ class Program
                 break;
             case "udp":
                 throw new NotImplementedException();
+            default:
+                Console.WriteLine("Unknown protocol. Please use 'tcp' or 'udp'");
+                break;
         }
         Environment.Exit(0);
     }

@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 using ipk_25_chat.Message.Enum;
 using ipk_25_chat.Message.Interface;
@@ -24,7 +25,7 @@ public class ClientMsgParser : IMsgParser
             MessageType.Msg => GetNormalMessage(msg),
             MessageType.Help => ShowHelp(),
             MessageType.Rename => ChangeDisplayName(msg),
-            _ => throw new ArgumentException($"Unknown message type: {msgType}")
+            _ => ""
         };
         
         if (result != string.Empty && !_validator.ValidateFormat(msgType, result))

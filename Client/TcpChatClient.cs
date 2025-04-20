@@ -1,8 +1,11 @@
+using System;
 using System.Net.Sockets;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using ipk_25_chat.Message;
 using ipk_25_chat.Message.Enum;
 using ipk_25_chat.Protocol;

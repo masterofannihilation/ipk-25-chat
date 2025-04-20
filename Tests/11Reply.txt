@@ -1,1 +1,0 @@
-REPLY OK IS AUTH username AS Client USING secret

@@ -2,7 +2,6 @@ PROJECT_NAME = ipk-25-chat
 EXECUTABLE = ipk25chat-client
 OUTPUT_DIR = .
 
-# Default target
 all: build
 
 # Build a self-contained single-file executable for Linux
@@ -13,12 +12,11 @@ build:
 		-p:AssemblyName=$(EXECUTABLE) \
 		-o $(OUTPUT_DIR)
 
-# Clean build artifacts
 clean:
 	dotnet clean
-	rm -rf $(PROJECT_NAME) bin obj *.pdb *.sln
+	rm -rf $(EXECUTABLE) bin obj *.pdb *.sln
 
 zip: clean
-	zip -r xhatal02.zip .
+	zip -r xhatal02.zip $(OUTPUT_DIR) -x .git .gitignore .idea notes
 
-.PHONY: all build clean
+.PHONY: all build clean zip
