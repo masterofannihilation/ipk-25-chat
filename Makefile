@@ -17,6 +17,6 @@ clean:
 	rm -rf $(EXECUTABLE) bin obj *.pdb *.sln
 
 zip: clean
-	zip -r xhatal02.zip $(OUTPUT_DIR) -x .git .gitignore .idea notes
+	zip -r xhatal02.zip $(OUTPUT_DIR) -x ".git/*" ".gitignore" ".idea/*" notes
 
 .PHONY: all build clean zip

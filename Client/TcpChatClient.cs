@@ -177,7 +177,7 @@ public class TcpChatClient
         }
         catch (Exception ex)
         {
-            await Console.Error.WriteLineAsync($"ERROR: Failed to send message: {ex.Message}");
+            await Console.Error.WriteLineAsync($"Failed to send message: {ex.Message}");
             Environment.Exit(1);
         }
     }
