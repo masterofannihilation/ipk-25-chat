@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
@@ -52,7 +53,7 @@ public class TcpChatClient
         {
             e.Cancel = true; // Prevent immediate termination
             await SendByeMessage(stream, cts);
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts,0);
             Environment.Exit(0);
         };
     }
@@ -90,15 +91,14 @@ public class TcpChatClient
         }
         catch (OperationCanceledException)
         {
-            // Handle BYE gracefully
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts,0);
             Environment.Exit(0);
         }
         // Terminate the application after processing all messages
         finally
         {
             await SendByeMessage(stream, cts);
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts,0);
         }
     }
 
@@ -114,15 +114,17 @@ public class TcpChatClient
                 var formattedMessage = clientMsgParser.ParseMsg(input);
                 // Check if the user set its display name in an auth message or changed it using /rename
                 UpdateDisplayNameIfNeeded(clientMsgParser, msgType);
-                // Change the state of the client based on the message type
-                _state.ProcessEvent(msgType);
                 // If the client entered the END state, send a BYE message to the server and disconnect
                 await TerminateConnectionIfEndState(stream, cts);
-                // Send a formatted message to the server unless it's /rename 
+                // Send a formatted message to the server
                 if (formattedMessage != "")
+                {
+                    // Change the state of the client based on the message type
+                    _state.ProcessEvent(msgType);
                     await SendMessageAsync(stream, cts, formattedMessage);
-                // Wait for response only when authorizing the user or joining a channel
-                await WaitForResponseFromServerAsync(stream, cts);
+                    // Wait for response only when authorizing the user or joining a channel
+                    await WaitForResponseFromServerAsync(stream, cts);
+                }
             }
             else
             {
@@ -146,7 +148,7 @@ public class TcpChatClient
         if (_state.CurrentState == StateType.End)
         {
             await SendByeMessage(stream, cts);
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts,0);
         }
     }
     private async Task SendByeMessage(NetworkStream stream, CancellationTokenSource cts)
@@ -179,7 +181,7 @@ public class TcpChatClient
     
     private async Task WaitForResponseFromServerAsync(NetworkStream stream, CancellationTokenSource cts)
     {
-        if (_state.CurrentState == StateType.Auth || _state.CurrentState == StateType.Join)
+        if (_state.CurrentState is StateType.Auth or StateType.Join)
         {
             var responseTask = _responseTcs.Task;
             // Wait for the server response or timeout (5 seconds)
@@ -187,7 +189,7 @@ public class TcpChatClient
             {
                 Console.WriteLine("ERROR: Server response timeout");
                 await SendErrMessage(stream, cts);
-                await Disconnect(stream, cts);
+                await Disconnect(stream, cts,1 );
                 Environment.Exit(1);
             }
             // Reset the TaskCompletionSource for the next message
@@ -197,6 +199,7 @@ public class TcpChatClient
     
     private async Task SendErrMessage(NetworkStream stream, CancellationTokenSource cts, string invalidMsg="")
     {
+        invalidMsg = invalidMsg.Trim();
         byte[] data = Encoding.UTF8.GetBytes($"ERR FROM {_displayName} IS {invalidMsg}\r\n");
         await stream.WriteAsync(data, 0, data.Length, cts.Token);
     }
@@ -205,31 +208,47 @@ public class TcpChatClient
     {
         var msgParser = new ServerMsgParser();
         var buffer = new byte[BufferSize];
+        var dataBuffer = new StringBuilder(); // Buffer to store partial data
 
         try
         {
-            // Continuously read from the server
             while (!cts.IsCancellationRequested)
             {
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
 
                 if (bytesRead > 0)
                 {
-                    // Process the received message
-                    await ProcessReceivingMessageAsync(stream, cts, buffer, bytesRead, msgParser);
+                    // Append received data to the buffer
+                    dataBuffer.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+
+                    // Process complete messages
+                    string data = dataBuffer.ToString();
+                    int delimiterIndex;
+                    while ((delimiterIndex = data.IndexOf("\r\n", StringComparison.Ordinal)) != -1)
+                    {
+                        // Extract a complete message, including the delimiter
+                        string completeMessage = data.Substring(0, delimiterIndex + 2);
+                        data = data.Substring(delimiterIndex + 2); // Remove a processed message
+
+                        // Process the complete message
+                        await ProcessReceivingMessageAsync(stream, cts, Encoding.UTF8.GetBytes(completeMessage), completeMessage.Length, msgParser);
+                    }
+
+                    // Update the buffer with remaining data
+                    dataBuffer.Clear();
+                    dataBuffer.Append(data);
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            // Handle cancellation gracefully
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts, 0);
             Environment.Exit(0);
         }
         catch (Exception ex)
         {
             await Console.Error.WriteLineAsync($"ERROR: An unexpected error occurred while reading from the server: {ex.Message}");
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts,1);
             Environment.Exit(1);
         }
     }
@@ -244,27 +263,35 @@ public class TcpChatClient
         {
             Console.Write($"ERROR: {msg}");
             await SendErrMessage(stream, cts, msg);
-            await Disconnect(stream, cts);
+            await Disconnect(stream, cts, 1);
         }
-        
-        // Format server message for display, check if the format is valid
-        var formattedMsg = serverMsgParser.ParseMsg(msg);
-        //
-        if (formattedMsg != "" && formattedMsg != "ERROR")
-            Console.Write(formattedMsg);
-        
-        if (formattedMsg == "ERROR")
-            await Disconnect(stream, cts);
-        
-        // Change the state of the client based on the message type
-        _state.ProcessEvent(msgType);  
-        await TerminateConnectionIfEndState(stream, cts);
+        else
+        {
 
-        // Signal that a response has been received and another user message can be processed
-        _responseTcs.TrySetResult(true);
+            // Format server message for display, check if the format is valid
+            var formattedMsg = serverMsgParser.ParseMsg(msg);
+            if (formattedMsg != "" && formattedMsg != "ERROR")
+                Console.Write(formattedMsg);
+
+            // Malformed message from the server
+            if (formattedMsg == "ERROR")
+            {
+                Console.Write($"ERROR: {msg}");
+                await SendErrMessage(stream, cts, msg);
+                await Disconnect(stream, cts, 1);
+            }
+
+            // Change the state of the client based on the message type
+            _state.ProcessEvent(msgType);
+            await TerminateConnectionIfEndState(stream, cts);
+
+            // Signal that a response has been received and another user message can be processed
+            if (msgType is MessageType.Reply or MessageType.NotReply)
+                _responseTcs.TrySetResult(true);
+        }
     }
 
-    private async Task Disconnect(NetworkStream stream, CancellationTokenSource cts)
+    private async Task Disconnect(NetworkStream stream, CancellationTokenSource cts, int retCode)
     {
         if (_isDisconnected) return; // Prevent multiple disconnections
             _isDisconnected = true;
@@ -273,6 +300,7 @@ public class TcpChatClient
         {
             await cts.CancelAsync();
             await stream.FlushAsync();
+            Environment.Exit(retCode);
             // Console.WriteLine("Disconnected successfully");
         }
         catch (Exception ex)

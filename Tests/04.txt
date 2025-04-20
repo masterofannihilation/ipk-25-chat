@@ -1,0 +1,3 @@
+Hello world
+/auth username secret Client
+Hello world retry

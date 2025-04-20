@@ -30,12 +30,12 @@ public class ServerMsgParser : IMsgParser
         if (msgParts.Length < 2)
             return MessageType.Unknown;
         
-        return msgParts[0] switch
+        return msgParts[0].ToUpper() switch
         {
             "MSG" => MessageType.Msg,
             "ERR" => MessageType.Err,
             "BYE" => MessageType.Bye,
-            "REPLY" => msgParts[1] switch
+            "REPLY" => msgParts[1].ToUpper() switch
             {
                 "OK" => MessageType.Reply,
                 "NOK" => MessageType.NotReply,
@@ -67,7 +67,6 @@ public class ServerMsgParser : IMsgParser
     private string ParseReplyMessage(string msg)
     {
         var content = _validator.GetContent(msg, "IS");
-
         return $"Action Success: {content}";
     }
     

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices.JavaScript;
 using System.Text.RegularExpressions;
 using ipk_25_chat.Message.Enum;
 
@@ -8,9 +7,9 @@ public class MsgValidator
 {
     public bool ValidateFormat(MessageType type, string msg)
     {
-        if (!msg.EndsWith("\r\n"))
+        if (!msg.EndsWith("\r\n", StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine($"Message doesn't end with \\r\\n: {Regex.Escape(msg)}");
+            Console.WriteLine($"ERROR: {msg}");
             return false;
         }
 
@@ -30,111 +29,113 @@ public class MsgValidator
 
     private bool IsValidReplyMsg(string msg)
     {
-        var msgParts = msg.Split(" ");
+        var msgParts = msg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
         var content = GetContent(msg, "IS");
-        return msgParts is ["REPLY", "OK" or "NOK", "IS", ..] &&
+        return msgParts.Length >= 4 &&
+               msgParts[0].Equals("REPLY", StringComparison.OrdinalIgnoreCase) &&
+               (msgParts[1].Equals("OK", StringComparison.OrdinalIgnoreCase) || msgParts[1].Equals("NOK", StringComparison.OrdinalIgnoreCase)) &&
+               msgParts[2].Equals("IS", StringComparison.OrdinalIgnoreCase) &&
                IsValidContent(content);
     }
 
     private bool IsValidByeMsg(string msg)
     {
-        var msgParts = msg.Split(" ");
-        return msgParts is ["BYE", "FROM", _] &&
+        var msgParts = msg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+        return msgParts.Length == 3 &&
+               msgParts[0].Equals("BYE", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[1].Equals("FROM", StringComparison.OrdinalIgnoreCase) &&
                IsValidDisplayName(msgParts[2]);
     }
 
     private bool IsValidAuthMsg(string msg)
     {
-        var msgParts = msg.Split(" ");
-        return msgParts is ["AUTH", _, "AS", _, "USING", _] &&
+        var msgParts = msg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+        return msgParts.Length == 6 &&
+               msgParts[0].Equals("AUTH", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[2].Equals("AS", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[4].Equals("USING", StringComparison.OrdinalIgnoreCase) &&
                IsValidId(msgParts[1]) &&
-               IsValidDisplayName(msgParts[3])  &&
+               IsValidDisplayName(msgParts[3]) &&
                IsValidSecret(msgParts[5]);
     }
 
     private bool IsValidJoinMsg(string msg)
     {
-        var msgParts = msg.Split(" ");
-        return msgParts is ["JOIN", _, "AS" , _] &&
+        var msgParts = msg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+        return msgParts.Length == 4 &&
+               msgParts[0].Equals("JOIN", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[2].Equals("AS", StringComparison.OrdinalIgnoreCase) &&
                IsValidId(msgParts[1]) &&
                IsValidDisplayName(msgParts[3]);
     }
 
     private bool IsValidNormalMsg(string msg)
     {
-        msg = CheckMessageLength(msg);
-        var msgParts = msg.Split(" ");
+        var msgParts = msg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
         var content = GetContent(msg, "IS");
-        return msgParts is ["MSG", "FROM", _, "IS", ..] &&
+        return msgParts.Length >= 4 &&
+               msgParts[0].Equals("MSG", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[1].Equals("FROM", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[3].Equals("IS", StringComparison.OrdinalIgnoreCase) &&
                IsValidDisplayName(msgParts[2]) &&
                IsValidContent(content);
     }
 
-    private static string CheckMessageLength(string msg)
+    public string CheckMessageLength(string msg)
     {
-        if (msg.Length > 60000)
+        var content = GetContent(msg, "IS");
+        if (content.Length > 60000)
         {
             Console.WriteLine("ERROR: Message is too long, max 60000 characters");
-            msg = msg.Substring(0, 60000);
-            
+            int index = msg.IndexOf("IS", StringComparison.OrdinalIgnoreCase);
+            var msgBase = msg.Substring(0,index + 3);
+            var contentTrimmed = content.Substring(0, 60000);
+            return msgBase + contentTrimmed + "\r\n";
         }
-
         return msg;
     }
+
     public string GetContent(string msg, string delimiter)
     {
-        int index = msg.IndexOf(delimiter, StringComparison.Ordinal);
-        var content = msg.Substring(index + 3);
+        int index = msg.IndexOf(delimiter, StringComparison.OrdinalIgnoreCase);
+        if (index == -1) return string.Empty;
+        var content = msg.Substring(index + delimiter.Length + 1);
         return content;
     }
 
     private bool IsValidErrMsg(string msg)
     {
-        var msgParts = msg.Split(" ");
+        var msgParts = msg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
         var content = GetContent(msg, "IS");
-        return msgParts is ["ERR", "FROM", _, "IS", ..] &&
+        return msgParts.Length >= 4 &&
+               msgParts[0].Equals("ERR", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[1].Equals("FROM", StringComparison.OrdinalIgnoreCase) &&
+               msgParts[3].Equals("IS", StringComparison.OrdinalIgnoreCase) &&
                IsValidDisplayName(msgParts[2]) &&
                IsValidContent(content);
     }
-    
-    
-    public bool IsValidId(string id)
+
+    private bool IsValidId(string id)
     {
         var regex = new Regex(@"^[a-zA-Z0-9_-]{1,20}$");
-        if (!regex.IsMatch(id))
-        {
-            Console.WriteLine($"Invalid id: {Regex.Escape(id)}");
-        }
         return regex.IsMatch(id);
     }
-    
-    public bool IsValidSecret(string secret)
+
+    private bool IsValidSecret(string secret)
     {
         var regex = new Regex(@"^[a-zA-Z0-9_-]{1,128}$");
-        if (!regex.IsMatch(secret.Trim()))
-        {
-            Console.WriteLine($"Invalid secret: {Regex.Escape(secret)}");
-        }
         return regex.IsMatch(secret.Trim());
     }
 
-    public bool IsValidDisplayName(string displayName)
+    private bool IsValidDisplayName(string displayName)
     {
         var regex = new Regex(@"^\S{1,20}$");
-        if (!regex.IsMatch(displayName.Trim()))
-        {
-            Console.WriteLine($"Invalid display name: {Regex.Escape(displayName)}");
-        }
         return regex.IsMatch(displayName.Trim());
     }
 
-    public bool IsValidContent(string message)
+    private bool IsValidContent(string message)
     {
         var regex = new Regex(@"^[\x21-\x7E\x20\x0A]*$");
-        if (!regex.IsMatch(message.Trim()))
-        {
-            Console.WriteLine($"Invalid content: {Regex.Escape(message)}");
-        }
         return regex.IsMatch(message.Trim());
     }
 }

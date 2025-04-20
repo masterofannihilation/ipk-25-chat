@@ -1,0 +1,3 @@
+REPLY OK IS AUTH username AS Client USING secret
+MSG FROM User IS Hello client
+REPLY OK IS JOIN TestChannel AS Client

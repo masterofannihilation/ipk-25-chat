@@ -29,9 +29,12 @@ public class ClientMsgParser : IMsgParser
         
         if (result != string.Empty && !_validator.ValidateFormat(msgType, result))
         {
-            Console.WriteLine($"ERROR: {Regex.Escape(result)}");
-            throw new ArgumentException($"Invalid message format: {msg}");
+            Console.Write($"ERROR: {result}");
+            result = string.Empty;
         }
+        
+        // Check message length and trim if necessary
+        result = _validator.CheckMessageLength(result);
         
         return result;
     }

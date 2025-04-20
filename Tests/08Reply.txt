@@ -1,0 +1,4 @@
+REPLY NOK IS AUTH username AS Client USING secret
+REPLY OK IS AUTH username AS Client USING secret2
+REPLY NOK IS JOIN TestChannel AS Client
+REPLY OK IS JOIN TestChannel AS Client

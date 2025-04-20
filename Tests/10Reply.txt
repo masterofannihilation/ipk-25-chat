@@ -1,0 +1,5 @@
+REPLY OK IS AUTH username AS Client USING secret
+MSG FROM Server IS Hello\r\nMSG FROM User IS Hey\r\n
+MSG FROM Server
+IS Testmessage\r\nMSG FROM User
+ IS yeeees\r\n

@@ -1,0 +1,2 @@
+/auth username secret Client
+/join TestChannel

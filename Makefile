@@ -18,4 +18,7 @@ clean:
 	dotnet clean
 	rm -rf $(PROJECT_NAME) bin obj *.pdb *.sln
 
+zip: clean
+	zip -r xhatal02.zip .
+
 .PHONY: all build clean

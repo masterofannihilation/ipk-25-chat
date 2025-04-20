@@ -1,0 +1,6 @@
+/auth username secret Client
+/auth username secret2 Client
+Hello world
+/join TestChannel
+/join TestChannel
+What's up guys?

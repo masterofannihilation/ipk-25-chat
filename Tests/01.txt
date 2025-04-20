@@ -1,0 +1,7 @@
+/auth username secret Client
+/help
+Hello world
+/join TestChannel
+Hello world to the TestChannel
+/rename ClientNewName
+Hello world, I have just changed my name!
