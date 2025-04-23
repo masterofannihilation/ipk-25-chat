@@ -4,7 +4,6 @@ OUTPUT_DIR = .
 
 all: build
 
-# Build a self-contained single-file executable for Linux
 build:
 	dotnet publish $(PROJECT_NAME).csproj -c Release -r linux-x64 \
 		--self-contained true \

@@ -1,13 +1,16 @@
 # IPK Project 2: Client for a chat server using the IPK25-CHAT protocol
 
 Author: **Boris Hatala** (xhatal02) \
-Date: 02-04-2025
+Date: 23-04-2025
 
 ## Table of Contents
 - [Introduction](#introduction)
 - [Usage](#usage)
   - [Prerequisites](#prerequisites)
   - [Supported command line arguments](#supported-command-line-arguments)
+- [Theory Overview](#theory-overview)
+  - [TCP](#tcp)
+  - [UDP](#udp)
 - [Design & Implementation](#design--implementation---tcp)
   - [Class Diagram](#class-diagram)
   - [Flow Chart](#flow-chart)
@@ -17,6 +20,7 @@ Date: 02-04-2025
   - [State](#state)
   - [CliArgParser](#cliargparser)
 - [Testing](#testing)
+- [Used Tools](#used-tools)
 - [Bibliography](#bibliography)
 
 ## Introduction
@@ -58,6 +62,37 @@ $ ./ipk25chat-client -t [tcp / udp] -s [IP address / hostname] [options]
 - `/help` - Show this help message
 
 Simply typing a text in the terminal and pressing `Enter` will send the message to the server.
+
+## Theory Overview
+
+This project implements a client for a chat server using the IPK25-CHAT protocol. This protocol has two variants: TCP and UDP, both will be discussed
+in this section.
+
+### TCP
+
+Transmission Control Protocol (TCP) [[RFC 9293]](https://www.ietf.org/rfc/rfc9293.html) is a connection-oriented protocol. It provides a reliable and stable connection. Its reliability comes from 
+the fact that it can detect packet loss and retransmit lost packets by keeping sequence numbers of the packets. "Three-way handshake" is used to establish a connection between the client and the server
+which ensures that both sides are capable of communicating. \
+Establishment of the connection starts with the client sending a `SYN` packet to the server. The server responds with a 
+`SYN-ACK` packet, and the client sends an `ACK` packet back to the server. \
+Once the connection is established, the client can send messages to the server and receive messages from the server. \
+The connection is gracefully closed by sending a `FIN` packet from the client to the server, and the server responds with an `ACK` packet. Then 
+the server sends a `FIN` packet to the client, and the client responds with an `ACK` packet. \
+
+### UDP
+
+User Datagram Protocol (UDP) [[RFC 768]](https://www.rfc-editor.org/rfc/rfc768) is a connectionless protocol. There is no such thing as a "three-way handshake".
+It sends packets to the destination port without guaranteeing their delivery, order or possible duplication. It is necessary to implement these mechanisms 
+manually in the client to provide a reliable connection. \
+Upon establishing connection, the client sends the first packet to the server port and the server responds from a different dynamic port. This port will
+be used for further communication.\
+Each message received either by the client or the server needs to be acknowledged by sending a confirmation packet `CONFIRM` back to the sender. 
+Hence, the client must keep track of the packets he has sent to compare the sequence number of the `CONFIRM` message with his sequence numbers. In case of not
+receiving the confirmation packet, the sender retransmits the message up to a maximum number of times defined by the user via command line arguments.
+After not receiving the confirmation packet after the maximum number of retransmissions, the sender gracefully closes the connection and terminates. \
+Packet loss is also detected by keeping track of the sequence number of the received packets. These numbers allow also ordering received packets. \
+The server periodically sends a `PING` message to the client just to make sure that the client is still alive. The client muse respond with a 
+`CONFIRM` message.
 
 ## Design & Implementation - TCP
 
@@ -104,7 +139,8 @@ This class is the implementation of the finite state machine used to track the c
 **ProcessEvent()** method accepts `MessageType` argument and changes the state of the client based on the current state and the message type. \
 **IsMessageTypeAllowed()** method is used to determine if the client can send or receive a message of a certain type based on the current state.
 
-![FSM](./Doc/protocol_fsm_client.svg)
+![FSM](./Doc/protocol_fsm_client.svg)(https://git.fit.vutbr.cz/NESFIT/IPK-Projects/src/branch/master/Project_2)
+
 
 ### Flow Chart
 This flow chart illustrates the flow of the program and the interactions between the processes.
@@ -129,8 +165,8 @@ Upon receiving an error message from the server, it tries to send an error messa
 
 ### Using `netcat` to simulate the server
 #### Motivation
-The goal of this testing method is to simulate the server and test the client in a controlled environment while
-being able to see the messages sent and received by the client in the `netcat`.
+Firstly, the client was tested using `netcat`. The goal of this testing method is to simulate the server and test the client in a controlled environment while
+being able to see the messages sent and received by the client.
 
 #### 1. Basic functionality
 **Motivation** of this test is to check if the client can successfully 
@@ -569,10 +605,21 @@ BYE FROM Client
 ```
 </div> </div>
 
+### Using reference server
+
+Secondly, the client was tested using the reference server provided by the project coordinators. 
+
 ### Using publicly available tests
 
-Additionally, the client was tested using publicly available tests at https://github.com/Vlad6422/VUT_IPK_CLIENT_TESTS
+Finally, the client was tested using publicly available tests at: https://github.com/Vlad6422/VUT_IPK_CLIENT_TESTS.
+
+## Used Tools
+- **Jetbrains Rider** : IDE for C# development
+- **GIT** : Version control system
+- **Netcat** : Network application used to simulate the server
+- **Artificial Intelligence** : Used for explanation of the concepts necessary for the project execution.
 
 ## Bibliography
 1. RFC 9293, Transmission Control Protocol (TCP) https://www.ietf.org/rfc/rfc9293.html
+2. RFC 768, User Datagram Protocol (UDP) https://www.rfc-editor.org/rfc/rfc768
 2. RFC 1350, The TFTP Protocol (Revision 2) https://datatracker.ietf.org/doc/html/rfc1350
